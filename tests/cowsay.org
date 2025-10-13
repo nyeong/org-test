@@ -28,12 +28,12 @@ Hello
 
 #+NAME: expect-cowsay-exact
 #+begin_example
+ _______
 < Hello >
- ----
+ -------
         \   ^__^
          \  (oo)\_______
             (__)\       )\/\
                 ||----w |
                 ||     ||
-
 #+end_example

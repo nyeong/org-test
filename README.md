@@ -9,9 +9,16 @@ Literal testing tools for org-mode.
 3. Write expected output in example block
 4. Name it `expect-{test-name}-${test-type}`
    - Available match types:
+     - `exact`: output matches exactly
      - `including`: output contains expected text
-     - `exact`: output matchees exactly
-4. Run `M-x org-test-run-current-buffer`
+     - `excluding` / `not-including`: output must NOT contain expected text
+     - `contains-all`: output contains all lines from expected (order-independent)
+     - `matches` / `matching`: output matches expected regex pattern
+5. Run tests:
+   - `M-x org-test-run-current-buffer` - test current buffer
+   - `(org-test-run "file.org")` - test a file
+   - `(org-test-run "tests/")` - test all .org files in directory
+   - `(org-test-run "api.org" "ui.org")` - test multiple files
 
 ## Example
 
@@ -38,6 +45,20 @@ Hello
 
 #+end_example
 ~~~
+
+## Configuration
+
+### Timeout
+
+Set global timeout for test execution (default: 30 seconds):
+
+```elisp
+;; Set timeout to 60 seconds
+(setq org-test-default-timeout 60)
+
+;; Disable timeout
+(setq org-test-default-timeout nil)
+```
 
 ## Development
 
@@ -67,5 +88,19 @@ nix flake check
 
 ## API
 
-- `org-test-run-current-buffer`: Test current buffer.
-- `org-test-run`: Test given files, buffers, directories or string.
+### Functions
+
+- `org-test-run-current-buffer`: Test current buffer (interactive)
+- `org-test-run &rest targets`: Test given targets (variadic)
+  - Accepts: buffers, file paths, directory paths, or any combination
+  - Examples:
+    ```elisp
+    (org-test-run (current-buffer))
+    (org-test-run "tests/api.org")
+    (org-test-run "tests/")
+    (org-test-run "api.org" "ui.org" "integration.org")
+    ```
+
+### Variables
+
+- `org-test-default-timeout`: Global timeout in seconds (default: 30, nil to disable)

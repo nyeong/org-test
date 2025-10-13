@@ -23,7 +23,7 @@
         
         # Test runner script
         testScript = pkgs.writeShellScriptBin "check" ''
-          ${testEmacs}/bin/emacs --batch -l org-test.el tests/api.org --eval "(org-test-run-current-buffer)"
+          ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "tests/")'
         '';
         
         # Pre-commit hooks
@@ -54,7 +54,7 @@
           } ''
             cp -r ${./.}/* .
             chmod -R +w .
-            ${testEmacs}/bin/emacs --batch -l org-test.el tests/api.org --eval "(org-test-run-current-buffer)"
+            ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "tests/")'
             touch $out
           '';
         };
