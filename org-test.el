@@ -5,12 +5,54 @@
 
 (require 'org)
 (require 'async)
+(require 'compile)
 
 ;; Configuration
 
 (defvar org-test-default-timeout 30
   "Default timeout in seconds for each test.
 Set to nil to disable timeout.")
+
+;; Faces
+
+(defface org-test-pass-face
+  '((t :foreground "green" :weight bold))
+  "Face for passed tests.")
+
+(defface org-test-fail-face
+  '((t :foreground "red" :weight bold))
+  "Face for failed tests.")
+
+;; Org Test Results Mode
+
+(define-derived-mode org-test-mode org-mode "Org-Test"
+  "Major mode for Org Test results."
+  (setq-local buffer-read-only t))
+
+;; Output Functions
+
+(defun org-test--get-results-buffer ()
+  "Get or create *Org Test* buffer."
+  (let ((buffer (get-buffer-create "*Org Test*")))
+    (with-current-buffer buffer
+      (unless (eq major-mode 'org-test-mode)
+        (org-test-mode)
+        (setq buffer-read-only nil)))
+    buffer))
+
+(defun org-test--display-results-buffer ()
+  "Display test results buffer."
+  (display-buffer (org-test--get-results-buffer)))
+
+(defun org-test--output (format-string &rest args)
+  "Output to appropriate destination based on mode."
+  (let ((text (apply #'format format-string args)))
+    (if noninteractive
+        (message "%s" text)
+      (with-current-buffer (org-test--get-results-buffer)
+        (let ((inhibit-read-only t))
+          (goto-char (point-max))
+          (insert text "\n"))))))
 
 ;; Public API
 
@@ -25,11 +67,39 @@ TARGETS can be:
 - File paths (strings ending in .org)
 - Directory paths (finds all .org files recursively)
 - Multiple arguments of any combination"
- (let ((buffers (org-test--normalize-targets targets)))
+ (let ((buffers (org-test--normalize-targets targets))
+       (total-passed 0)
+       (total-failed 0)
+       (total-tests 0))
+   ;; Count total tests first
    (dolist (buffer buffers)
+     (with-current-buffer buffer
+       (setq total-tests (+ total-tests (length (org-test--find-tests))))))
+   
+   ;; If no tests, just message and return
+   (if (= total-tests 0)
+       (message "No tests found")
+     ;; Has tests - setup buffer and run
+     (unless noninteractive
+       (with-current-buffer (org-test--get-results-buffer)
+         (let ((inhibit-read-only t))
+           (erase-buffer)))
+       (org-test--display-results-buffer))
+     
+     (dolist (buffer buffers)
+       (let ((result (org-test--run-buffer-sync buffer)))
+         (setq total-passed (+ total-passed (car result)))
+         (setq total-failed (+ total-failed (cdr result)))))
+     
+     (org-test--output "")
      (if noninteractive
-         (org-test--run-buffer-sync buffer)
-       (org-test--run-buffer-async buffer)))))
+         (org-test--output "Passed: %d, Failed: %d" total-passed total-failed)
+       (progn
+         (org-test--output "* Summary")
+         (org-test--output "Passed: %d, Failed: %d" total-passed total-failed)))
+     ;; Return non-zero exit code if any tests failed
+     (when (and noninteractive (> total-failed 0))
+       (kill-emacs 1)))))
 
 ;; Private API
 
@@ -62,16 +132,22 @@ TARGETS can be buffers, file paths, or directory paths."
    (nreverse files)))
 
 (defun org-test--run-buffer-sync (buffer)
- "Find all test blocks and run synchronously those in given BUFFER."
+ "Find all test blocks and run synchronously those in given BUFFER.
+Returns (passed . failed) cons cell."
  (with-current-buffer buffer
    (let* ((test-blocks (org-test--find-tests))
         (expect-map (org-test--find-expectations))
-        (state (vector (length test-blocks) 0 0 0)))
-     (message "Starting %d tests in %s..." (aref state 0) (buffer-name buffer))
+        (state (vector (length test-blocks) 0 0 0))
+        (file-path (buffer-file-name buffer)))
+     (if noninteractive
+         (org-test--output "%s" (buffer-name buffer))
+       (org-test--output "* %s" (buffer-name buffer)))
      (dolist (test-block test-blocks)
        (let* ((test-name-full (org-element-property :name test-block))
               (test-name (substring test-name-full 5))
-            (info (save-excursion (goto-char (org-element-property :begin test-block))
+              (test-begin (org-element-property :begin test-block))
+              (test-line (line-number-at-pos test-begin))
+            (info (save-excursion (goto-char test-begin)
                            (org-babel-get-src-block-info)))
             (lang (nth 0 info))
             (body (org-element-property :value test-block))
@@ -79,24 +155,26 @@ TARGETS can be buffers, file paths, or directory paths."
             (params (cons '(:results . "value")
                      (assq-delete-all :results original-params)))
             (actual-result (org-test--execute-test-block lang body params)))
-         (org-test--process-result state test-name actual-result expect-map)))
-     (message "\nFinished. Passed: %d, Failed: %d"
-           (aref state 2) (aref state 3))
-     ;; Return non-zero exit code if any tests failed
-     (when (> (aref state 3) 0)
-       (kill-emacs 1)))))
+         (org-test--process-result state test-name-full test-name file-path actual-result expect-map)))
+     ;; Return (passed . failed)
+     (cons (aref state 2) (aref state 3)))))
 
 (defun org-test--run-buffer-async (buffer)
  "Find all test blocks and run asyncly those in given BUFFER."
  (with-current-buffer buffer
    (let* ((test-blocks (org-test--find-tests))
         (expect-map (org-test--find-expectations))
-        (state (vector (length test-blocks) 0 0 0)))
-     (message "Starting %d async tests in %s..." (aref state 0) (buffer-name buffer))
+        (state (vector (length test-blocks) 0 0 0))
+        (file-path (buffer-file-name buffer)))
+     (if noninteractive
+         (org-test--output "%s" (buffer-name buffer))
+       (org-test--output "* %s" (buffer-name buffer)))
      (dolist (test-block test-blocks)
        (let* ((test-name-full (org-element-property :name test-block))
               (test-name (substring test-name-full 5))
-            (info (save-excursion (goto-char (org-element-property :begin test-block))
+              (test-begin (org-element-property :begin test-block))
+              (test-line (line-number-at-pos test-begin))
+            (info (save-excursion (goto-char test-begin)
                            (org-babel-get-src-block-info)))
             (lang (nth 0 info))
             (body (org-element-property :value test-block))
@@ -107,7 +185,7 @@ TARGETS can be buffers, file paths, or directory paths."
           `(lambda ()
             (org-test--execute-test-block ,lang ,body ',params))
           `(lambda (actual-result)
-            (org-test--process-result ',state ,test-name actual-result expect-map))))))))
+            (org-test--process-result ',state ,test-name-full ,test-name ,file-path actual-result expect-map))))))))
 
 (defun org-test--execute-test-block (lang body params)
  "Execute a babel block with LANG, BODY, and PARAMS, then return the result string.
@@ -126,14 +204,26 @@ Respects `org-test-default-timeout' for execution timeout."
      (error "Babel executor for '%s' not found" lang-name))))
 
 
-(defun org-test--process-result (state test-name actual-result expect-map)
+(defun org-test--process-result (state test-name-full test-name file-path actual-result expect-map)
  (let ((completed (1+ (aref state 1))))
    (aset state 1 completed))
 
  (let* ((expected-blocks (gethash test-name expect-map))
         (test-passed-p t))
    (if (not expected-blocks)
-       (progn (message "-> FAIL: %s (No expectation block)" test-name) (setq test-passed-p nil))
+       (progn 
+         (if noninteractive
+             (org-test--output "  %s %s (No expectation block)" 
+                              (propertize "✗" 'face 'org-test-fail-face)
+                              test-name)
+           (org-test--output "** %s [[file:%s::%s][%s]] (No expectation block)" 
+                            (propertize "✗" 'face 'org-test-fail-face)
+                            file-path test-name-full test-name))
+         (setq test-passed-p nil))
+     ;; Print test name
+     (if noninteractive
+         (org-test--output "  %s" test-name)
+       (org-test--output "** [[file:%s::%s][%s]]" file-path test-name-full test-name))
      (cl-block nil
        (dolist (exp-block expected-blocks)
          (let* ((exp-name (org-element-property :name exp-block))
@@ -156,29 +246,37 @@ Respects `org-test-default-timeout' for execution timeout."
                             (t "unknown")))
                 (comparison-result (org-test--compare actual-result expected-string test-type)))
            (if comparison-result
-               (message "  ✓ %s (%s)" test-name test-type)
+               (if noninteractive
+                   (org-test--output "    %s %s" 
+                                    (propertize "✓" 'face 'org-test-pass-face)
+                                    test-type)
+                 (org-test--output "   - %s [[file:%s::%s][%s]]" 
+                                  (propertize "✓" 'face 'org-test-pass-face)
+                                  file-path exp-name test-type))
              (let* ((actual-str (if (stringp actual-result) actual-result (format "%s" actual-result)))
                     (expected-str (if (stringp expected-string) expected-string 
                                     (if (listp expected-string) 
                                         (mapconcat #'identity expected-string "") 
                                       (format "%s" expected-string)))))
-               (message "  ✗ %s (Type: %s)" test-name test-type)
-               (message "   Expected: %s" (string-trim expected-str))
-               (message "   Actual:   %s" (string-trim actual-str))
+               (if noninteractive
+                   (progn
+                     (org-test--output "    %s %s" 
+                                      (propertize "✗" 'face 'org-test-fail-face)
+                                      test-type)
+                     (org-test--output "      Expected: %s" (string-trim expected-str))
+                     (org-test--output "      Actual:   %s" (string-trim actual-str)))
+                 (org-test--output "   - %s [[file:%s::%s][%s]]" 
+                                  (propertize "✗" 'face 'org-test-fail-face)
+                                  file-path exp-name test-type)
+                 (org-test--output "     - Expected: %s" (string-trim expected-str))
+                 (org-test--output "     - Actual:   %s" (string-trim actual-str)))
                (setq test-passed-p nil)
                (cl-return-from nil)))))))
 
    (if test-passed-p
-       (progn
-         (message "-> PASS: %s" test-name)
-         (aset state 2 (1+ (aref state 2))))
-     (aset state 3 (1+ (aref state 3)))))
+       (aset state 2 (1+ (aref state 2)))
+     (aset state 3 (1+ (aref state 3))))))
 
- ;; For async mode only: print summary when all tests complete
- (when (and (= (aref state 0) (aref state 1))
-            (not noninteractive))
-   (message "\nFinished. Passed: %d, Failed: %d"
-         (aref state 2) (aref state 3))))
 
 (defun org-test--find-tests ()
  "Find all test blocks."
