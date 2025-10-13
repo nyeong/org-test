@@ -154,7 +154,13 @@ Returns (passed . failed) cons cell."
             (original-params (nth 2 info))
             (params (cons '(:results . "value")
                      (assq-delete-all :results original-params)))
-            (actual-result (org-test--execute-test-block lang body params)))
+            (eval-param (cdr (assoc :eval original-params)))
+            (actual-result 
+             (if (member eval-param '("no" "never"))
+                 ;; :eval no - use RESULTS block
+                 (org-test--get-results-block test-block)
+               ;; Normal execution
+               (org-test--execute-test-block lang body params))))
          (org-test--process-result state test-name-full test-name file-path actual-result expect-map)))
      ;; Return (passed . failed)
      (cons (aref state 2) (aref state 3)))))
@@ -180,12 +186,34 @@ Returns (passed . failed) cons cell."
             (body (org-element-property :value test-block))
             (original-params (nth 2 info))
             (params (cons '(:results . "value")
-                     (assq-delete-all :results original-params))))
-         (async-start
-          `(lambda ()
-            (org-test--execute-test-block ,lang ,body ',params))
-          `(lambda (actual-result)
-            (org-test--process-result ',state ,test-name-full ,test-name ,file-path actual-result expect-map))))))))
+                     (assq-delete-all :results original-params)))
+            (eval-param (cdr (assoc :eval original-params))))
+         (if (member eval-param '("no" "never"))
+             ;; :eval no - use RESULTS block (sync only)
+             (let ((actual-result (org-test--get-results-block test-block)))
+               (org-test--process-result state test-name-full test-name file-path actual-result expect-map))
+           ;; Normal async execution
+           (async-start
+            `(lambda ()
+              (org-test--execute-test-block ,lang ,body ',params))
+            `(lambda (actual-result)
+              (org-test--process-result ',state ,test-name-full ,test-name ,file-path actual-result expect-map)))))))))
+
+(defun org-test--get-results-block (src-block)
+  "Get the RESULTS block content following SRC-BLOCK.
+Used when :eval no is specified."
+  (save-excursion
+    (goto-char (org-element-property :end src-block))
+    (when (re-search-forward "^[ \t]*#\\+RESULTS:" 
+                             (save-excursion (outline-next-heading) (point))
+                             t)
+      (forward-line 1)
+      (let ((results-elem (org-element-at-point)))
+        (pcase (org-element-type results-elem)
+          ('example-block (org-element-property :value results-elem))
+          ('fixed-width (org-element-property :value results-elem))
+          ('paragraph (org-element-interpret-data (org-element-contents results-elem)))
+          (_ (error "Unsupported RESULTS block type: %s" (org-element-type results-elem))))))))
 
 (defun org-test--execute-test-block (lang body params)
  "Execute a babel block with LANG, BODY, and PARAMS, then return the result string.

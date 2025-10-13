@@ -2,6 +2,34 @@
 
 This document demonstrates various match types and usage patterns of org-test.
 
+* Test Blocks
+
+You can test source code blocks by naming them with =test-= prefix.
+
+#+begin_src org
+,#+NAME: test-static-result
+,#+begin_src emacs-lisp :eval no
+,"This won't be executed"
+,#+end_src
+#+end_src
+
+** Without Execution
+
+If you don't need to execute the code (e.g., for static content or pre-computed results), use =:eval no= and provide the result in a =#+RESULTS:= block:
+
+#+NAME: test-static-result
+#+begin_src emacs-lisp :eval no
+"This won't be executed"
+#+end_src
+
+#+RESULTS: test-static-result
+: "Hello, World!"
+
+#+NAME: expect-static-result-exact
+: "Hello, World!"
+
+This uses org-mode's standard =:eval no= header argument. The test will use the cached result from the =#+RESULTS:= block instead of executing the code.
+
 * Match Types
 
 org-test supports various match types for test expectations. Each test can have multiple expectations with different match types.
