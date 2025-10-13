@@ -16,11 +16,37 @@
  "TARGET might be a buffer, path or directories."
  (cond
   ((bufferp target)
-   (org-test--run-buffer-async target))
+   (if noninteractive
+       (org-test--run-buffer-sync target)
+     (org-test--run-buffer-async target)))
   (t (error "Unsupported target type: %s" (type-of target)))))
 
 ;; Private API
 
+(defun org-test--run-buffer-sync (buffer)
+ "Find all test blocks and run synchronously those in given BUFFER."
+ (with-current-buffer buffer
+   (let* ((test-blocks (org-test--find-tests))
+        (expect-map (org-test--find-expectations))
+        (state (vector (length test-blocks) 0 0 0)))
+     (message "Starting %d tests in %s..." (aref state 0) (buffer-name buffer))
+     (dolist (test-block test-blocks)
+       (let* ((test-name-full (org-element-property :name test-block))
+              (test-name (substring test-name-full 5))
+            (info (save-excursion (goto-char (org-element-property :begin test-block))
+                           (org-babel-get-src-block-info)))
+            (lang (nth 0 info))
+            (body (org-element-property :value test-block))
+            (original-params (nth 2 info))
+            (params (cons '(:results . "value")
+                     (assq-delete-all :results original-params)))
+            (actual-result (org-test--execute-test-block lang body params)))
+         (org-test--process-result state test-name actual-result expect-map)))
+     (message "\nFinished. Passed: %d, Failed: %d"
+           (aref state 2) (aref state 3))
+     ;; Return non-zero exit code if any tests failed
+     (when (> (aref state 3) 0)
+       (kill-emacs 1)))))
 
 (defun org-test--run-buffer-async (buffer)
  "Find all test blocks and run asyncly those in given BUFFER."
@@ -30,7 +56,8 @@
         (state (vector (length test-blocks) 0 0 0)))
      (message "Starting %d async tests in %s..." (aref state 0) (buffer-name buffer))
      (dolist (test-block test-blocks)
-       (let* ((test-name (org-element-property :name test-block))
+       (let* ((test-name-full (org-element-property :name test-block))
+              (test-name (substring test-name-full 5))
             (info (save-excursion (goto-char (org-element-property :begin test-block))
                            (org-babel-get-src-block-info)))
             (lang (nth 0 info))
@@ -61,26 +88,43 @@ This is the core execution logic shared by sync and async runners."
    (aset state 1 completed))
 
  (let* ((expected-blocks (gethash test-name expect-map))
-      (test-passed-p t))
+        (test-passed-p t))
    (if (not expected-blocks)
-      (progn (message "-> FAIL: %s (No expectation block)" test-name) (setq test-passed-p nil))
-     (dolist (exp-block expected-blocks)
-       (let* ((exp-name (org-element-property :name exp-block))
-            (expected-string (org-element-contents exp-block))
-            (test-type (car (last (split-string exp-name "-")))))
-         (unless (org-test--compare actual-result expected-string test-type)
-           (message "-> FAIL: %s (Type: %s)" test-name test-type)
-           (setq test-passed-p nil)
-           (cl-return-from nil))))))
+       (progn (message "-> FAIL: %s (No expectation block)" test-name) (setq test-passed-p nil))
+     (cl-block nil
+       (dolist (exp-block expected-blocks)
+         (let* ((exp-name (org-element-property :name exp-block))
+                (exp-type (org-element-type exp-block))
+                (expected-string (cond
+                                  ((eq exp-type 'example-block)
+                                   (org-element-property :value exp-block))
+                                  ((eq exp-type 'fixed-width)
+                                   (org-element-property :value exp-block))
+                                  (t (org-element-interpret-data (org-element-contents exp-block)))))
+                (test-type (car (last (split-string exp-name "-"))))
+                (comparison-result (org-test--compare actual-result expected-string test-type)))
+           (unless comparison-result
+             (let* ((actual-str (if (stringp actual-result) actual-result (format "%s" actual-result)))
+                    (expected-str (if (stringp expected-string) expected-string 
+                                    (if (listp expected-string) 
+                                        (mapconcat #'identity expected-string "") 
+                                      (format "%s" expected-string)))))
+               (message "-> FAIL: %s (Type: %s)" test-name test-type)
+               (message "   Expected: %s" (string-trim expected-str))
+               (message "   Actual:   %s" (string-trim actual-str)))
+             (setq test-passed-p nil)
+             (cl-return-from nil))))))
 
- (if test-passed-p
-    (progn
-     (message "-> PASS: %s" test-name)
-     (aset state 2 (1+ (aref state 2))))
-   (aset state 3 (1+ (aref state 3))))
+   (if test-passed-p
+       (progn
+         (message "-> PASS: %s" test-name)
+         (aset state 2 (1+ (aref state 2))))
+     (aset state 3 (1+ (aref state 3)))))
 
- (when (= (aref state 0) (aref state 1)) 
-   (message "Finished all async tests. Passed: %d, Failed: %d"
+ ;; For async mode only: print summary when all tests complete
+ (when (and (= (aref state 0) (aref state 1))
+            (not noninteractive))
+   (message "\nFinished. Passed: %d, Failed: %d"
          (aref state 2) (aref state 3))))
 
 (defun org-test--find-tests ()
@@ -98,8 +142,9 @@ This is the core execution logic shared by sync and async runners."
                    (let ((exp-name (org-element-property :name exp)))
                      (when (and exp-name (string-prefix-p "expect-" exp-name))
                        exp)))))
-     (let* ((name-parts (split-string (org-element-property :name exp-block) "-"))
-          (test-name (mapconcat #'identity (butlast (cdr name-parts)) "-")))
+     (let* ((exp-name (org-element-property :name exp-block))
+            (name-parts (split-string exp-name "-"))
+            (test-name (mapconcat #'identity (butlast (cdr name-parts)) "-")))
        (push exp-block (gethash test-name expect-map '()))))
    expect-map))
 
@@ -108,8 +153,13 @@ This is the core execution logic shared by sync and async runners."
 Available TYPEs:
   - including
   - exact"
- (let ((clean-output (string-trim output))
-     (clean-expected (string-trim expected)))
+ (let* ((output-str (if (stringp output) output (format "%s" output)))
+        (expected-str (cond
+                       ((stringp expected) expected)
+                       ((listp expected) (mapconcat #'identity expected ""))
+                       (t (format "%s" expected))))
+        (clean-output (string-trim output-str))
+        (clean-expected (string-trim expected-str)))
    (cond
     ((equal type "including") (string-match-p (regexp-quote clean-expected) clean-output))
     ((equal type "exact") (equal clean-expected clean-output))

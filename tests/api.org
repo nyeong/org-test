@@ -10,7 +10,7 @@
 Next code block should return total tests in this buffer:
 
 #+NAME: test-org-test--find-tests
-#+begin_src elisp 
+#+begin_src emacs-lisp 
 (let* ((tests (org-test--find-tests)))
   (length tests))
 #+end_src
@@ -20,7 +20,7 @@ Next code block should return total tests in this buffer:
 
 #+NAME: expect-org-test--find-tests-exact
 #+begin_example
-1
+3
 #+end_example
 
 *** should contains
@@ -44,7 +44,7 @@ Next code block should return total tests in this buffer:
 and should count both example blocks and verbatim blocks.
 
 #+NAME: test-org-test--find-expectations
-#+begin_src elisp
+#+begin_src emacs-lisp
 (let* ((expectations (org-test--find-expectations)))
   (hash-table-count expectations))
 #+end_src
@@ -53,12 +53,12 @@ and should count both example blocks and verbatim blocks.
 : 3
 
 #+NAME: expect-org-test--find-expectations-exact
-: 2
+: 3
 
 *** should contains valid key names
 
 #+NAME: test-find-expectations-keys
-#+begin_src elisp
+#+begin_src emacs-lisp
 (let ((keys '()))
   (maphash (lambda (key value) (push key keys))
            (org-test--find-expectations))

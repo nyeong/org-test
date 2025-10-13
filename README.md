@@ -39,6 +39,32 @@ Hello
 #+end_example
 ~~~
 
+## Development
+
+### Setup
+
+```bash
+# Enter development environment (auto-installs git hooks)
+nix develop
+
+# Run tests manually
+check
+```
+
+The git hooks are automatically installed when you enter the nix dev shell. Tests will run before each commit.
+
+### Testing
+
+Run tests with:
+```bash
+nix develop -c check
+```
+
+Or use nix flake check:
+```bash
+nix flake check
+```
+
 ## API
 
 - `org-test-run-current-buffer`: Test current buffer.
