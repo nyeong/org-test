@@ -1,0 +1,116 @@
+#+TITLE: org-test Usage Examples
+
+This document demonstrates various match types and usage patterns of org-test.
+
+* Match Types
+
+org-test supports various match types for test expectations. Each test can have multiple expectations with different match types.
+
+** Exact Match
+
+The ~exact~ match type requires the output to match exactly (after trimming whitespace).
+
+#+NAME: test-exact-match
+#+begin_src emacs-lisp
+"Hello, World!"
+#+end_src
+
+#+NAME: expect-exact-match-exact
+#+begin_example
+Hello, World!
+#+end_example
+
+** Including (Substring Match)
+
+The ~including~ match type checks if the expected text appears anywhere in the output.
+
+#+NAME: test-substring
+#+begin_src emacs-lisp
+"The quick brown fox jumps over the lazy dog"
+#+end_src
+
+#+NAME: expect-substring-including
+#+begin_example
+quick brown fox
+#+end_example
+
+** Excluding / Not-Including
+
+These match types verify that the output does NOT contain certain text.
+
+#+NAME: test-excluding
+#+begin_src emacs-lisp
+"Hello World"
+#+end_src
+
+#+NAME: expect-excluding-excluding
+#+begin_example
+Goodbye
+#+end_example
+
+#+NAME: expect-excluding-not-including
+#+begin_example
+Farewell
+#+end_example
+
+** Contains-All (Order-Independent Lines)
+
+The ~contains-all~ match type checks that all expected lines appear in the output, regardless of order.
+
+#+NAME: test-contains-all
+#+begin_src emacs-lisp
+"Line 1
+Line 3
+Line 2"
+#+end_src
+
+#+NAME: expect-contains-all-contains-all
+#+begin_example
+Line 1
+Line 2
+Line 3
+#+end_example
+
+** Regex Matching
+
+The ~matches~ or ~matching~ match types support regular expression patterns.
+
+#+NAME: test-regex
+#+begin_src emacs-lisp
+"The answer is 42"
+#+end_src
+
+#+NAME: expect-regex-matches
+#+begin_example
+answer is [0-9]+
+#+end_example
+
+#+NAME: expect-regex-matching
+#+begin_example
+^The.*42$
+#+end_example
+
+* Multiple Expectations
+
+A single test can have multiple expectations with different match types.
+
+#+NAME: test-multi-expect
+#+begin_src emacs-lisp
+"Hello, World! The year is 2024."
+#+end_src
+
+#+NAME: expect-multi-expect-including
+#+begin_example
+Hello
+#+end_example
+
+#+NAME: expect-multi-expect-matching
+#+begin_example
+[0-9]\{4\}
+#+end_example
+
+#+NAME: expect-multi-expect-not-including
+#+begin_example
+Goodbye
+#+end_example
+

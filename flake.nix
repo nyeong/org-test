@@ -23,7 +23,7 @@
         
         # Test runner script
         testScript = pkgs.writeShellScriptBin "check" ''
-          ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "tests/")'
+          ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
         '';
         
         # Pre-commit hooks
@@ -46,15 +46,15 @@
           test = testScript;
         };
         
-        # Checks include both tests and pre-commit hooks
+        # Checks include both examples and pre-commit hooks
         checks = {
           pre-commit = pre-commit-check;
-          tests = pkgs.runCommand "org-test-check" {
+          examples = pkgs.runCommand "org-test-check" {
             buildInputs = [ testEmacs ];
           } ''
             cp -r ${./.}/* .
             chmod -R +w .
-            ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "tests/")'
+            ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
             touch $out
           '';
         };

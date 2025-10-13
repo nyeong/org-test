@@ -46,6 +46,8 @@ Hello
 #+end_example
 ~~~
 
+For more examples, see [examples].
+
 ## Configuration
 
 ### Timeout

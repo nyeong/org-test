@@ -1,0 +1,57 @@
+#+TITLE: Internal API Tests
+
+This document tests internal functions of org-test. These tests verify the correct behavior of the testing framework itself.
+
+* Internal API
+
+** org-test--find-tests
+
+The ~org-test--find-tests~ function finds source code blocks which have names prefixed with "test-".
+
+*** Should count tests correctly
+
+This test verifies that ~org-test--find-tests~ counts all test blocks in the current buffer.
+
+#+NAME: test-find-tests-count
+#+begin_src emacs-lisp 
+(let* ((tests (org-test--find-tests)))
+  (length tests))
+#+end_src
+
+#+NAME: expect-find-tests-count-exact
+#+begin_example
+3
+#+end_example
+
+** org-test--find-expectations
+
+The ~org-test--find-expectations~ function finds all expectation blocks and maps them to their corresponding tests.
+
+*** Should count expectation groups correctly
+
+#+NAME: test-find-expectations-count
+#+begin_src emacs-lisp
+(let* ((expectations (org-test--find-expectations)))
+  (hash-table-count expectations))
+#+end_src
+
+#+NAME: expect-find-expectations-count-exact
+: 3
+
+*** Should extract correct test names as keys
+
+#+NAME: test-find-expectations-keys
+#+begin_src emacs-lisp
+(let ((keys '()))
+  (maphash (lambda (key value) (push key keys))
+           (org-test--find-expectations))
+  (mapconcat #'identity (sort keys #'string<) "\n"))
+#+end_src
+
+#+NAME: expect-find-expectations-keys-exact
+#+begin_example
+find-expectations-count
+find-expectations-keys
+find-tests-count
+#+end_example
+
