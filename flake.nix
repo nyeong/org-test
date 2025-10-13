@@ -22,7 +22,11 @@
         
         # Test runner script
         testScript = pkgs.writeShellScriptBin "check" ''
-          ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
+          ${testEmacs}/bin/emacs --batch \
+            --eval '(setq org-confirm-babel-evaluate nil)' \
+            --eval '(org-babel-do-load-languages '"'"'org-babel-load-languages '"'"'((emacs-lisp . t) (C . t) (shell . t)))' \
+            -l org-test.el \
+            --eval '(org-test-run "examples/")'
         '';
         
         # Pre-commit hooks
@@ -53,7 +57,11 @@
           } ''
             cp -r ${./.}/* .
             chmod -R +w .
-            ${testEmacs}/bin/emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
+            ${testEmacs}/bin/emacs --batch \
+              --eval '(setq org-confirm-babel-evaluate nil)' \
+              --eval '(org-babel-do-load-languages '"'"'org-babel-load-languages '"'"'((emacs-lisp . t) (C . t) (shell . t)))' \
+              -l org-test.el \
+              --eval '(org-test-run "examples/")'
             touch $out
           '';
         };

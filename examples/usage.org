@@ -69,6 +69,32 @@ The ~exact~ match type requires the output to match exactly (after trimming whit
 Hello, World!
 #+end_example
 
+** Language Aliases
+
+org-test supports standard org-babel language aliases like ~elisp~ for ~emacs-lisp~.
+
+#+NAME: test-elisp-alias
+#+begin_src elisp
+(+ 1 2 3)
+#+end_src
+
+#+NAME: expect-elisp-alias-exact
+: 6
+
+And ~cpp~ for C++:
+
+#+NAME: test-cpp-alias
+#+begin_src cpp :results output
+#include <iostream>
+int main() {
+    std::cout << "Hello from C++!" << std::endl;
+    return 0;
+}
+#+end_src
+
+#+NAME: expect-cpp-alias-including
+: Hello from C++!
+
 ** Including (Substring Match)
 
 The ~including~ match type checks if the expected text appears anywhere in the output.

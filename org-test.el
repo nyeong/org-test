@@ -266,17 +266,33 @@ Used when :eval no is specified."
 (defun org-test--execute-test-block (lang body params)
  "Execute a babel block with LANG, BODY, and PARAMS, then return the result string.
 Respects `org-test-default-timeout' for execution timeout."
- (let* ((lang-name lang)
-        (executor (intern (format "org-babel-execute:%s" lang-name))))
-   ;; Required babel language library
-   (require (intern (concat "ob-" lang-name)))
-   (if (fboundp executor)
-       (if org-test-default-timeout
-           (with-timeout (org-test-default-timeout
-                          (error "Test timeout after %d seconds" org-test-default-timeout))
-             (funcall executor body params))
+ (let* ((lang-sym (if (symbolp lang) lang (intern lang)))
+        (executor (intern (format "org-babel-execute:%s" lang))))
+   
+   ;; Load language support using org-babel's mechanism
+   ;; This mimics what org-babel does internally, triggering all necessary hooks
+   (unless (fboundp executor)
+     ;; Try to load via org-babel-do-load-languages style loading
+     (ignore-errors
+       (require (intern (format "ob-%s" lang))))
+     ;; If still not available, check if there's a custom loader (e.g., Doom's lazy loading)
+     (unless (fboundp executor)
+       ;; Let org-babel try to load it by calling org-babel-get-src-block-info
+       ;; which triggers various hooks
+       (when (fboundp 'org-babel-confirm-evaluate)
+         ;; This triggers advice that may lazy-load the language
+         (ignore-errors
+           (org-babel-confirm-evaluate (list lang body params))))
+       ;; Final check
+       (unless (fboundp executor)
+         (error "No org-babel support for '%s'. Check org-babel-load-languages" lang))))
+   
+   ;; Execute with timeout
+   (if org-test-default-timeout
+       (with-timeout (org-test-default-timeout
+                      (error "Test timeout after %d seconds" org-test-default-timeout))
          (funcall executor body params))
-     (error "Babel executor for '%s' not found" lang-name))))
+     (funcall executor body params))))
 
 
 (defun org-test--process-result (state test-name-full test-name file-path actual-result expect-map)
