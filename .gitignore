@@ -1,1 +1,18 @@
 .pre-commit-config.yaml
+
+# Emacs
+*~
+\#*\#
+.\#*
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Nix
+result
+result-*
+
+# OS
+.DS_Store
+Thumbs.db

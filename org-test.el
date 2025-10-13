@@ -1,10 +1,55 @@
-;;; org-test.el --- Literal testing tools for org-mode.  -*- lexical-binding: t; -*-
-;;;
+;;; org-test.el --- Literal testing tools for org-mode  -*- lexical-binding: t; -*-
+
 ;; Copyright (C) 2025 An Nyeong
+
 ;; Author: An Nyeong <me@annyeong.me>
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "26.1") (org "9.0"))
+;; Keywords: org, testing, literate-programming
+;; URL: https://github.com/annyeong/org-test
+
+;; This file is NOT part of GNU Emacs.
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; org-test provides literal testing tools for org-mode documents.
+;; Write tests as named org-babel source blocks and expectations as
+;; example blocks, then run tests interactively or in batch mode.
+;;
+;; Basic usage:
+;;
+;;   #+NAME: test-example
+;;   #+begin_src emacs-lisp
+;;   (+ 1 2)
+;;   #+end_src
+;;
+;;   #+NAME: expect-example-exact
+;;   #+begin_example
+;;   3
+;;   #+end_example
+;;
+;; Run tests with M-x org-test-run-current-buffer or:
+;;   (org-test-run "file.org")
+;;   (org-test-run "directory/")
+;;
+;; See README.md for detailed documentation.
+
+;;; Code:
 
 (require 'org)
-(require 'async)
 (require 'compile)
 
 ;; Configuration
@@ -56,10 +101,13 @@ Set to nil to disable timeout.")
 
 ;; Public API
 
+;;;###autoload
 (defun org-test-run-current-buffer ()
+ "Run tests in the current buffer."
  (interactive)
  (org-test-run (current-buffer)))
 
+;;;###autoload
 (defun org-test-run (&rest targets)
  "Run tests on TARGETS (buffers, files, or directories).
 TARGETS can be:
@@ -217,7 +265,6 @@ Used when :eval no is specified."
 
 (defun org-test--execute-test-block (lang body params)
  "Execute a babel block with LANG, BODY, and PARAMS, then return the result string.
-This is the core execution logic shared by sync and async runners.
 Respects `org-test-default-timeout' for execution timeout."
  (let* ((lang-name lang)
         (executor (intern (format "org-babel-execute:%s" lang-name))))

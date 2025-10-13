@@ -46,7 +46,26 @@ Hello
 #+end_example
 ~~~
 
-For more examples, see [examples].
+For more examples, see [examples](examples/).
+
+## Static Results (No Execution)
+
+For tests that don't need execution (e.g., static content or pre-computed results), use `:eval no`:
+
+~~~org
+#+NAME: test-static
+#+begin_src emacs-lisp :eval no
+"Code won't run"
+#+end_src
+
+#+RESULTS: test-static
+: "Hello, World!"
+
+#+NAME: expect-static-exact
+: "Hello, World!"
+~~~
+
+The test will use the cached result from `#+RESULTS:` block instead of executing.
 
 ## Configuration
 

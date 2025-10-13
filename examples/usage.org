@@ -2,16 +2,37 @@
 
 This document demonstrates various match types and usage patterns of org-test.
 
-* Test Blocks
+* Getting Started
 
-You can test source code blocks by naming them with =test-= prefix.
+org-test uses a simple naming convention:
+
+1. *Test blocks* are named with =test-= prefix: =test-<name>=
+2. *Expectation blocks* are named with =expect-= prefix: =expect-<name>-<type>=
+
+Where =<type>= is one of: =exact=, =including=, =excluding=, =not-including=, =contains-all=, =matches=, or =matching=.
+
+** Basic Example
 
 #+begin_src org
-,#+NAME: test-static-result
-,#+begin_src emacs-lisp :eval no
-,"This won't be executed"
+,#+NAME: test-hello
+,#+begin_src emacs-lisp
+,"Hello, World!"
 ,#+end_src
+
+,#+NAME: expect-hello-exact
+,#+begin_example
+,Hello, World!
+,#+end_example
 #+end_src
+
+When you run the test, org-test will:
+1. Execute the =test-hello= block
+2. Compare its output with =expect-hello-exact= using exact match
+3. Report the result
+
+* Test Blocks
+
+You can test any org-babel supported language by naming blocks with =test-= prefix.
 
 ** Without Execution
 
@@ -141,4 +162,74 @@ Hello
 #+begin_example
 Goodbye
 #+end_example
+
+* Running Tests
+
+There are several ways to run tests:
+
+** Interactive Mode
+
+From within Emacs:
+
+#+begin_src emacs-lisp :eval no
+;; Test current buffer
+M-x org-test-run-current-buffer
+
+;; Test specific file
+(org-test-run "examples/usage.org")
+
+;; Test all .org files in directory
+(org-test-run "examples/")
+
+;; Test multiple targets
+(org-test-run "api.org" "ui.org" "integration.org")
+#+end_src
+
+Results are displayed in an =*Org Test*= buffer in org-mode format with clickable links to test locations.
+
+** Batch Mode
+
+From command line:
+
+#+begin_src shell :eval no
+# Using nix (if using flake.nix)
+nix develop -c check
+
+# Direct emacs invocation
+emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
+#+end_src
+
+Results are printed to stdout in a compact format.
+
+* Configuration
+
+** Timeout
+
+Set a global timeout for test execution (default: 30 seconds):
+
+#+begin_src emacs-lisp :eval no
+;; Set timeout to 60 seconds
+(setq org-test-default-timeout 60)
+
+;; Disable timeout
+(setq org-test-default-timeout nil)
+#+end_src
+
+Tests that exceed the timeout will fail with a timeout error.
+
+** Pre-commit Hooks
+
+You can integrate org-test with git pre-commit hooks:
+
+#+begin_src yaml :eval no
+# .pre-commit-config.yaml (using pre-commit-hooks.nix)
+repos:
+  - repo: local
+    hooks:
+      - id: org-test
+        name: Run org-test
+        entry: emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
+        language: system
+        pass_filenames: false
+#+end_src
 

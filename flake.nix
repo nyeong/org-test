@@ -15,10 +15,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Batch용 Emacs with org-mode and async
+        # Batch용 Emacs with org-mode
         testEmacs = pkgs.emacs-nox.pkgs.withPackages (epkgs: [
           epkgs.org
-          epkgs.async
         ]);
         
         # Test runner script
