@@ -1,0 +1,74 @@
+#+TITLE: API tests
+
+* Internal API
+** org-test--find-tests
+
+=org-test--find-tests= function finds source code blocks which have name prefixed with "test-".
+
+*** should find tests from this buffer well
+
+Next code block should return total tests in this buffer:
+
+#+NAME: test-org-test--find-tests
+#+begin_src elisp 
+(let* ((tests (org-test--find-tests)))
+  (length tests))
+#+end_src
+
+#+RESULTS: test-org-test--find-tests
+: 2
+
+#+NAME: expect-org-test--find-tests-exact
+#+begin_example
+1
+#+end_example
+
+*** should contains
+
+=org-test--find-tests=에서 테스트 이름을 찾을 수 있어야함
+
+#+begin_src elisp 
+(let* ((test-blocks (org-test--find-tests))
+       (test-names (mapcar (lambda (b) (org-element-property :name b))
+                             test-blocks)))
+  (member "test-org-test--find-tests" test-names))
+#+end_src
+
+#+RESULTS:
+| test-org-test--find-tests | test-org-test--find-expectations | test-find-expectations-keys |
+
+** org-test--find-expectations
+
+*** Should count well
+
+and should count both example blocks and verbatim blocks.
+
+#+NAME: test-org-test--find-expectations
+#+begin_src elisp
+(let* ((expectations (org-test--find-expectations)))
+  (hash-table-count expectations))
+#+end_src
+
+#+RESULTS: test-org-test--find-expectations
+: 3
+
+#+NAME: expect-org-test--find-expectations-exact
+: 2
+
+*** should contains valid key names
+
+#+NAME: test-find-expectations-keys
+#+begin_src elisp
+(let ((keys '()))
+  (maphash (lambda (key value) (push key keys))
+           (org-test--find-expectations))
+  (sort keys #'string<))
+#+end_src
+
+#+RESULTS: test-find-expectations-keys
+| find-expectations-keys | org-test--find-expectations | org-test--find-tests |
+
+#+NAME: expect-find-expectations-keys-including
+#+begin_example
+find-expectations-keys
+#+end_example

@@ -93,13 +93,13 @@ This is the core execution logic shared by sync and async runners."
 (defun org-test--find-expectations ()
  "Find all expect blocks, return (test-name . expect-list)."
  (let ((expect-map (make-hash-table :test 'equal)))
-   (dolist (exp-block (org-element-map (org-element-parse-buffer) 'example-block
+   (dolist (exp-block (org-element-map (org-element-parse-buffer) '(example-block fixed-width)
                  (lambda (exp)
                    (let ((exp-name (org-element-property :name exp)))
                      (when (and exp-name (string-prefix-p "expect-" exp-name))
                        exp)))))
      (let* ((name-parts (split-string (org-element-property :name exp-block) "-"))
-          (test-name (nth 1 name-parts)))
+          (test-name (mapconcat #'identity (butlast (cdr name-parts)) "-")))
        (push exp-block (gethash test-name expect-map '()))))
    expect-map))
 
