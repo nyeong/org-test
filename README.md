@@ -4,17 +4,13 @@ Literal testing tools for org-mode.
 
 ## Usage
 
-1. Write test code in src block
-2. Name it with prefix `test-${test-name}`.
-3. Write expected output in example block
-4. Name it `expect-{test-name}-${test-type}`
+1. Write expected block named `expect-<name>-<type>`
    - Available match types:
-     - `exact`: output matches exactly
-     - `including`: output contains expected text
-     - `excluding` / `not-including`: output must NOT contain expected text
-     - `contains-all`: output contains all lines from expected (order-independent)
-     - `matches` / `matching`: output matches expected regex pattern
-5. Run tests:
+     - `equals`: output matches exactly
+     - `includes`: output contains expected text
+     - `matches`: output matches expected regex pattern
+2. Write test code in src block named `<name>`.
+3. Run tests:
    - `M-x org-test-run-current-buffer` - test current buffer
    - `(org-test-run "file.org")` - test a file
    - `(org-test-run "tests/")` - test all .org files in directory
@@ -23,17 +19,17 @@ Literal testing tools for org-mode.
 ## Example
 
 ~~~org
-#+NAME: test-cowsay
+#+NAME: cowsay
 #+begin_src bash
 nix run nixpkgs#cowsay -- "Hello"
 #+end_src
 
-#+NAME: expect-cowsay-including
+#+NAME: expect-cowsay-includes
 #+begin_example
 Hello
 #+end_example
 
-#+NAME: expect-cowsay-exact
+#+NAME: expect-cowsay-equals
 #+begin_example
 < Hello >
  ----
@@ -47,25 +43,6 @@ Hello
 ~~~
 
 For more examples, see [examples](examples/).
-
-## Static Results (No Execution)
-
-For tests that don't need execution (e.g., static content or pre-computed results), use `:eval no`:
-
-~~~org
-#+NAME: test-static
-#+begin_src emacs-lisp :eval no
-"Code won't run"
-#+end_src
-
-#+RESULTS: test-static
-: "Hello, World!"
-
-#+NAME: expect-static-exact
-: "Hello, World!"
-~~~
-
-The test will use the cached result from `#+RESULTS:` block instead of executing.
 
 ## Configuration
 
@@ -83,27 +60,12 @@ Set global timeout for test execution (default: 30 seconds):
 
 ## Development
 
-### Setup
-
-```bash
-# Enter development environment (auto-installs git hooks)
-nix develop
-
-# Run tests manually
-check
-```
-
-The git hooks are automatically installed when you enter the nix dev shell. Tests will run before each commit.
-
 ### Testing
 
 Run tests with:
 ```bash
 nix develop -c check
-```
-
-Or use nix flake check:
-```bash
+# or
 nix flake check
 ```
 

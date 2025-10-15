@@ -1,193 +1,126 @@
 #+TITLE: org-test Usage Examples
 
+*org-test* is a simple extension that provides literal testing tools.
+
 This document demonstrates various match types and usage patterns of org-test.
 
 * Getting Started
 
-org-test uses a simple naming convention:
+org-test uses a simple naming convention; *Expectation blocks* are named with =expect-= prefix: =expect-<name>-<type>=.
 
-1. *Test blocks* are named with =test-= prefix: =test-<name>=
-2. *Expectation blocks* are named with =expect-= prefix: =expect-<name>-<type>=
-
-Where =<type>= is one of: =exact=, =including=, =excluding=, =not-including=, =contains-all=, =matches=, or =matching=.
+Where =<type>= is one of: =equals=, =includes=, =matches=, etc. Check [[Match Types]].
 
 ** Basic Example
 
 #+begin_src org
-,#+NAME: test-hello
+,#+NAME: hello
 ,#+begin_src emacs-lisp
 ,"Hello, World!"
 ,#+end_src
 
-,#+NAME: expect-hello-exact
+,#+NAME: expect-hello-equals
 ,#+begin_example
 ,Hello, World!
 ,#+end_example
 #+end_src
 
 When you run the test, org-test will:
-1. Execute the =test-hello= block
-2. Compare its output with =expect-hello-exact= using exact match
+1. Find the expectation blocks. (=expect-hello-equals=)
+1. Find the test blocks with names of expectation blocks. (=hello=)
+2. Execute the test blocks using org-babel.
+2. Compare its output with =expect-hello-equals=.
 3. Report the result
+
+* Expectation Blocks
+
+Blocks following the naming convention are Expectation Blocks.
+
+#+begin_example
+expect-<name>-<type>
+#+end_example
+
+- =name= :: The name of the block to test.
+- =type= :: See [[Match Types]].
 
 * Test Blocks
 
-You can test any org-babel supported language by naming blocks with =test-= prefix.
+The blocks named =name= are assumed to be test blocks.
 
-** Without Execution
+The source code block will be executed using Org-Babel, and their results will be tested as strings.
 
-If you don't need to execute the code (e.g., for static content or pre-computed results), use =:eval no= and provide the result in a =#+RESULTS:= block:
-
-#+NAME: test-static-result
-#+begin_src emacs-lisp :eval no
-"This won't be executed"
-#+end_src
-
-#+RESULTS: test-static-result
-: "Hello, World!"
-
-#+NAME: expect-static-result-exact
-: "Hello, World!"
-
-This uses org-mode's standard =:eval no= header argument. The test will use the cached result from the =#+RESULTS:= block instead of executing the code.
+Other block types will be treated as strings.
 
 * Match Types
 
 org-test supports various match types for test expectations. Each test can have multiple expectations with different match types.
 
-** Exact Match
+** Equals
 
-The ~exact~ match type requires the output to match exactly (after trimming whitespace).
+The ~equals~ match type requires the output to be exactly equal (after trimming whitespace).
 
-#+NAME: test-exact-match
+#+NAME: exact-match
 #+begin_src emacs-lisp
 "Hello, World!"
 #+end_src
 
-#+NAME: expect-exact-match-exact
-#+begin_example
-Hello, World!
-#+end_example
+#+NAME: expect-exact-match-equals
+: Hello, World!
 
-** Language Aliases
+The negative form of =equals= is =not-equals=.
 
-org-test supports standard org-babel language aliases like ~elisp~ for ~emacs-lisp~.
+#+NAME: expect-exact-match-not-equals
+: 안녕, 세상아!
 
-#+NAME: test-elisp-alias
-#+begin_src elisp
-(+ 1 2 3)
-#+end_src
+** Includes
 
-#+NAME: expect-elisp-alias-exact
-: 6
+The ~includes~ match type checks if the expected text appears anywhere in the output.
 
-And ~cpp~ for C++:
-
-#+NAME: test-cpp-alias
-#+begin_src cpp :results output
-#include <iostream>
-int main() {
-    std::cout << "Hello from C++!" << std::endl;
-    return 0;
-}
-#+end_src
-
-#+NAME: expect-cpp-alias-including
-: Hello from C++!
-
-** Including (Substring Match)
-
-The ~including~ match type checks if the expected text appears anywhere in the output.
-
-#+NAME: test-substring
+#+NAME: substring
 #+begin_src emacs-lisp
 "The quick brown fox jumps over the lazy dog"
 #+end_src
 
-#+NAME: expect-substring-including
+#+NAME: expect-substring-includes
+: quick brown fox
+
+The negative form of =includes= is =not-includes=.
+
+#+NAME: expect-substring-not-includes
+: white fox
+
+=includes-any= and =includes-all= are available for multiple line matching:
+
+- =includes-any= :: At least one of the expected lines should appear in the output
+- =includes-all= :: All expected lines should appear in the output (order-independent)
+
+#+NAME: expect-substring-includes-any
 #+begin_example
-quick brown fox
+quick
+dark
+cat
 #+end_example
 
-** Excluding / Not-Including
-
-These match types verify that the output does NOT contain certain text.
-
-#+NAME: test-excluding
-#+begin_src emacs-lisp
-"Hello World"
-#+end_src
-
-#+NAME: expect-excluding-excluding
+#+NAME: expect-substring-includes-all
 #+begin_example
-Goodbye
+quick
+brown
+dog
 #+end_example
 
-#+NAME: expect-excluding-not-including
-#+begin_example
-Farewell
-#+end_example
+** Matches
 
-** Contains-All (Order-Independent Lines)
+The ~matches~ matches types support regular expression patterns.
 
-The ~contains-all~ match type checks that all expected lines appear in the output, regardless of order.
-
-#+NAME: test-contains-all
-#+begin_src emacs-lisp
-"Line 1
-Line 3
-Line 2"
-#+end_src
-
-#+NAME: expect-contains-all-contains-all
-#+begin_example
-Line 1
-Line 2
-Line 3
-#+end_example
-
-** Regex Matching
-
-The ~matches~ or ~matching~ match types support regular expression patterns.
-
-#+NAME: test-regex
+#+NAME: regex
 #+begin_src emacs-lisp
 "The answer is 42"
 #+end_src
 
 #+NAME: expect-regex-matches
-#+begin_example
-answer is [0-9]+
-#+end_example
+: answer is [0-9]+
 
-#+NAME: expect-regex-matching
-#+begin_example
-^The.*42$
-#+end_example
-
-* Multiple Expectations
-
-A single test can have multiple expectations with different match types.
-
-#+NAME: test-multi-expect
-#+begin_src emacs-lisp
-"Hello, World! The year is 2024."
-#+end_src
-
-#+NAME: expect-multi-expect-including
-#+begin_example
-Hello
-#+end_example
-
-#+NAME: expect-multi-expect-matching
-#+begin_example
-[0-9]\{4\}
-#+end_example
-
-#+NAME: expect-multi-expect-not-including
-#+begin_example
-Goodbye
-#+end_example
+#+NAME: expect-regex-not-matches
+: ^answer is [0-9]+$
 
 * Running Tests
 
@@ -242,20 +175,4 @@ Set a global timeout for test execution (default: 30 seconds):
 #+end_src
 
 Tests that exceed the timeout will fail with a timeout error.
-
-** Pre-commit Hooks
-
-You can integrate org-test with git pre-commit hooks:
-
-#+begin_src yaml :eval no
-# .pre-commit-config.yaml (using pre-commit-hooks.nix)
-repos:
-  - repo: local
-    hooks:
-      - id: org-test
-        name: Run org-test
-        entry: emacs --batch -l org-test.el --eval '(org-test-run "examples/")'
-        language: system
-        pass_filenames: false
-#+end_src
 

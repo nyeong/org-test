@@ -6,19 +6,21 @@ This document tests internal functions of org-test. These tests verify the corre
 
 ** org-test--find-tests
 
-The ~org-test--find-tests~ function finds source code blocks which have names prefixed with "test-".
+The ~org-test--find-tests~ function finds blocks that match the given test names.
 
 *** Should count tests correctly
 
-This test verifies that ~org-test--find-tests~ counts all test blocks in the current buffer.
+This test verifies that ~org-test--find-tests~ finds all blocks matching the test names from expectations.
 
-#+NAME: test-find-tests-count
+#+NAME: find-tests-count
 #+begin_src emacs-lisp 
-(let* ((tests (org-test--find-tests)))
+(let* ((expect-map (org-test--find-expectations))
+       (test-names (hash-table-keys expect-map))
+       (tests (org-test--find-tests test-names)))
   (length tests))
 #+end_src
 
-#+NAME: expect-find-tests-count-exact
+#+NAME: expect-find-tests-count-equals
 #+begin_example
 3
 #+end_example
@@ -29,18 +31,18 @@ The ~org-test--find-expectations~ function finds all expectation blocks and maps
 
 *** Should count expectation groups correctly
 
-#+NAME: test-find-expectations-count
+#+NAME: find-expectations-count
 #+begin_src emacs-lisp
 (let* ((expectations (org-test--find-expectations)))
   (hash-table-count expectations))
 #+end_src
 
-#+NAME: expect-find-expectations-count-exact
+#+NAME: expect-find-expectations-count-equals
 : 3
 
 *** Should extract correct test names as keys
 
-#+NAME: test-find-expectations-keys
+#+NAME: find-expectations-keys
 #+begin_src emacs-lisp
 (let ((keys '()))
   (maphash (lambda (key value) (push key keys))
@@ -48,7 +50,7 @@ The ~org-test--find-expectations~ function finds all expectation blocks and maps
   (mapconcat #'identity (sort keys #'string<) "\n"))
 #+end_src
 
-#+NAME: expect-find-expectations-keys-exact
+#+NAME: expect-find-expectations-keys-equals
 #+begin_example
 find-expectations-count
 find-expectations-keys
