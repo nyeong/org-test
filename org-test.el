@@ -227,40 +227,6 @@ Returns (passed . failed) cons cell."
      ;; Return (passed . failed)
      (cons (aref state 2) (aref state 3)))))
 
-(defun org-test--run-buffer-async (buffer)
- "Find all test blocks and run asyncly those in given BUFFER."
- (with-current-buffer buffer
-   (let* ((test-blocks (org-test--find-tests))
-        (expect-map (org-test--find-expectations))
-        (state (vector (length test-blocks) 0 0 0))
-        (file-path (buffer-file-name buffer)))
-     (if noninteractive
-        (org-test--output "%s" (buffer-name buffer))
-       (org-test--output "* %s" (buffer-name buffer)))
-     (dolist (test-block test-blocks)
-       (let* ((test-name-full (org-element-property :name test-block))
-            (test-name (substring test-name-full 5))
-            (test-begin (org-element-property :begin test-block))
-            (test-line (line-number-at-pos test-begin))
-            (info (save-excursion (goto-char test-begin)
-                           (org-babel-get-src-block-info)))
-            (lang (nth 0 info))
-            (body (org-element-property :value test-block))
-            (original-params (nth 2 info))
-            (params (cons '(:results . "value")
-                     (assq-delete-all :results original-params)))
-            (eval-param (cdr (assoc :eval original-params))))
-         (if (member eval-param '("no" "never"))
-            ;; :eval no - use RESULTS block (sync only)
-            (let ((actual-result (org-test--get-results-block test-block)))
-             (org-test--process-result state test-name-full test-name file-path actual-result expect-map))
-           ;; Normal async execution
-           (async-start
-            `(lambda ()
-              (org-test--execute-test-block ,lang ,body ',params))
-            `(lambda (actual-result)
-              (org-test--process-result ',state ,test-name-full ,test-name ,file-path actual-result expect-map)))))))))
-
 (defun org-test--get-results-block (src-block)
  "Get the RESULTS block content following SRC-BLOCK.
 Used when :eval no is specified."
