@@ -1,6 +1,6 @@
 #+TITLE: org-test Usage Examples
 
-*org-test* is a simple extension that provides literal testing tools.
+*org-test* is a simple extension that provides literate testing tools.
 
 This document demonstrates various match types and usage patterns of org-test.
 

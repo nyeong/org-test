@@ -1,6 +1,6 @@
 # org-test.el
 
-Literal testing tools for org-mode.
+Literate testing tools for org-mode.
 
 ## Usage
 

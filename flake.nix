@@ -1,5 +1,5 @@
 {
-  description = "org-test - Literal testing tools for org-mode";
+  description = "org-test - Literate testing tools for org-mode";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

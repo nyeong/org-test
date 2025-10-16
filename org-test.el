@@ -1,4 +1,4 @@
-;;; org-test.el --- Literal testing tools for org-mode  -*- lexical-binding: t; -*-
+;;; org-test.el --- Literate testing tools for org-mode  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 An Nyeong
 
@@ -25,7 +25,7 @@
 
 ;;; Commentary:
 
-;; org-test provides literal testing tools for org-mode documents.
+;; org-test provides literate testing tools for org-mode documents.
 ;; Write tests as named org-babel source blocks and expectations as
 ;; example blocks, then run tests interactively or in batch mode.
 ;;
@@ -55,57 +55,57 @@
 ;; Configuration
 
 (defvar org-test-default-timeout 30
- "Default timeout in seconds for each test.
+  "Default timeout in seconds for each test.
 Set to nil to disable timeout.")
 
 ;; Faces
 
 (defface org-test-pass-face
- '((t :foreground "green" :weight bold))
- "Face for passed tests.")
+  '((t :foreground "green" :weight bold))
+  "Face for passed tests.")
 
 (defface org-test-fail-face
- '((t :foreground "red" :weight bold))
- "Face for failed tests.")
+  '((t :foreground "red" :weight bold))
+  "Face for failed tests.")
 
 ;; Org Test Results Mode
 
 (define-derived-mode org-test-mode org-mode "Org-Test"
- "Major mode for Org Test results."
- (setq-local buffer-read-only t))
+  "Major mode for Org Test results."
+  (setq-local buffer-read-only t))
 
 ;; Output Functions
 
 (defun org-test--get-results-buffer ()
- "Get or create *Org Test* buffer."
- (let ((buffer (get-buffer-create "*Org Test*")))
-   (with-current-buffer buffer
-     (unless (eq major-mode 'org-test-mode)
-       (org-test-mode)
-       (setq buffer-read-only nil)))
-   buffer))
+  "Get or create *Org Test* buffer."
+  (let ((buffer (get-buffer-create "*Org Test*")))
+    (with-current-buffer buffer
+      (unless (eq major-mode 'org-test-mode)
+        (org-test-mode)
+        (setq buffer-read-only nil)))
+    buffer))
 
 (defun org-test--display-results-buffer ()
- "Display test results buffer."
- (display-buffer (org-test--get-results-buffer)))
+  "Display test results buffer."
+  (display-buffer (org-test--get-results-buffer)))
 
 (defun org-test--output (format-string &rest args)
- "Output to appropriate destination based on mode."
- (let ((text (apply #'format format-string args)))
-   (if noninteractive
-      (message "%s" text)
-     (with-current-buffer (org-test--get-results-buffer)
-       (let ((inhibit-read-only t))
-         (goto-char (point-max))
-         (insert text "\n"))))))
+  "Output to appropriate destination based on mode."
+  (let ((text (apply #'format format-string args)))
+    (if noninteractive
+        (message "%s" text)
+      (with-current-buffer (org-test--get-results-buffer)
+        (let ((inhibit-read-only t))
+          (goto-char (point-max))
+          (insert text "\n"))))))
 
 ;; Public API
 
 ;;;###autoload
 (defun org-test-run-current-buffer ()
- "Run tests in the current buffer."
- (interactive)
- (org-test-run (current-buffer)))
+  "Run tests in the current buffer."
+  (interactive)
+  (org-test-run (current-buffer)))
 
 ;;;###autoload
 (defun org-test-run (&rest targets)
@@ -162,58 +162,58 @@ TARGETS can be:
 ;; Private API
 
 (defun org-test--normalize-targets (targets)
- "Convert TARGETS to a list of buffers.
+  "Convert TARGETS to a list of buffers.
 TARGETS can be buffers, file paths, or directory paths."
- (let ((buffers '()))
-   (dolist (target targets)
-     (cond
-      ((bufferp target)
-       (push target buffers))
-      ((and (stringp target) (file-directory-p target))
-       (dolist (file (org-test--find-org-files target))
-         (push (org-test--file-to-buffer file) buffers)))
-      ((and (stringp target) (file-exists-p target))
-       (push (org-test--file-to-buffer target) buffers))
-      (t (error "Invalid target: %s (not a buffer, file, or directory)" target))))
-   (nreverse buffers)))
+  (let ((buffers '()))
+    (dolist (target targets)
+      (cond
+       ((bufferp target)
+        (push target buffers))
+       ((and (stringp target) (file-directory-p target))
+        (dolist (file (org-test--find-org-files target))
+          (push (org-test--file-to-buffer file) buffers)))
+       ((and (stringp target) (file-exists-p target))
+        (push (org-test--file-to-buffer target) buffers))
+       (t (error "Invalid target: %s (not a buffer, file, or directory)" target))))
+    (nreverse buffers)))
 
 (defun org-test--file-to-buffer (file-path)
- "Load FILE-PATH into a temporary buffer and return it."
- (let ((buffer (find-file-noselect (expand-file-name file-path))))
-   buffer))
+  "Load FILE-PATH into a temporary buffer and return it."
+  (let ((buffer (find-file-noselect (expand-file-name file-path))))
+    buffer))
 
 (defun org-test--find-org-files (directory)
- "Recursively find all .org files in DIRECTORY."
- (let ((files '()))
-   (dolist (file (directory-files-recursively directory "\\.org$"))
-     (push file files))
-   (nreverse files)))
+  "Recursively find all .org files in DIRECTORY."
+  (let ((files '()))
+    (dolist (file (directory-files-recursively directory "\\.org$"))
+      (push file files))
+    (nreverse files)))
 
 (defun org-test--get-block-result (block block-type)
- "Get result from BLOCK based on BLOCK-TYPE."
- (cond
-  ((eq block-type 'src-block)
-   (org-test--execute-src-block block))
-  ((eq block-type 'example-block)
-   (org-element-property :value block))
-  ((eq block-type 'fixed-width)
-   (org-element-property :value block))
-  (t (org-element-interpret-data (org-element-contents block)))))
+  "Get result from BLOCK based on BLOCK-TYPE."
+  (cond
+   ((eq block-type 'src-block)
+    (org-test--execute-src-block block))
+   ((eq block-type 'example-block)
+    (org-element-property :value block))
+   ((eq block-type 'fixed-width)
+    (org-element-property :value block))
+   (t (org-element-interpret-data (org-element-contents block)))))
 
 (defun org-test--execute-src-block (block)
- "Execute source BLOCK and return result."
- (let* ((begin (org-element-property :begin block))
-      (info (save-excursion (goto-char begin)
-                     (org-babel-get-src-block-info)))
-      (lang (nth 0 info))
-      (body (org-element-property :value block))
-      (params (nth 2 info))
-      (eval-param (cdr (assoc :eval params))))
-   (if (member eval-param '("no" "never"))
-      (org-test--get-results-block block)
-     (org-test--execute-test-block lang body
-                                      (cons '(:results . "value")
-                                            (assq-delete-all :results params))))))
+  "Execute source BLOCK and return result."
+  (let* ((begin (org-element-property :begin block))
+         (info (save-excursion (goto-char begin)
+                               (org-babel-get-src-block-info)))
+         (lang (nth 0 info))
+         (body (org-element-property :value block))
+         (params (nth 2 info))
+         (eval-param (cdr (assoc :eval params))))
+    (if (member eval-param '("no" "never"))
+        (org-test--get-results-block block)
+      (org-test--execute-test-block lang body
+                                    (cons '(:results . "value")
+                                          (assq-delete-all :results params))))))
 
 (defun org-test--run-buffer-sync (buffer test-blocks expect-map)
   "Run TEST-BLOCKS in BUFFER with EXPECT-MAP.
@@ -233,116 +233,116 @@ Returns (passed . failed) cons cell."
       (cons (aref state 2) (aref state 3)))))
 
 (defun org-test--get-results-block (src-block)
- "Get the RESULTS block content following SRC-BLOCK.
+  "Get the RESULTS block content following SRC-BLOCK.
 Used when :eval no is specified."
- (save-excursion
-   (goto-char (org-element-property :end src-block))
-   (when (re-search-forward "^[ \t]*#\\+RESULTS:"
-                    (save-excursion (outline-next-heading) (point))
-                    t)
-     (forward-line 1)
-     (let ((results-elem (org-element-at-point)))
-       (pcase (org-element-type results-elem)
-         ('example-block (org-element-property :value results-elem))
-         ('fixed-width (org-element-property :value results-elem))
-         ('paragraph (org-element-interpret-data (org-element-contents results-elem)))
-         (_ (error "Unsupported RESULTS block type: %s" (org-element-type results-elem))))))))
+  (save-excursion
+    (goto-char (org-element-property :end src-block))
+    (when (re-search-forward "^[ \t]*#\\+RESULTS:"
+                             (save-excursion (outline-next-heading) (point))
+                             t)
+      (forward-line 1)
+      (let ((results-elem (org-element-at-point)))
+        (pcase (org-element-type results-elem)
+          ('example-block (org-element-property :value results-elem))
+          ('fixed-width (org-element-property :value results-elem))
+          ('paragraph (org-element-interpret-data (org-element-contents results-elem)))
+          (_ (error "Unsupported RESULTS block type: %s" (org-element-type results-elem))))))))
 
 (defun org-test--execute-test-block (lang body params)
- "Execute a babel block with LANG, BODY, and PARAMS, then return the result string.
+  "Execute a babel block with LANG, BODY, and PARAMS, then return the result string.
 Respects `org-test-default-timeout' for execution timeout."
- (let* ((lang-sym (if (symbolp lang) lang (intern lang)))
-      (executor (intern (format "org-babel-execute:%s" lang))))
-   
-   (unless (fboundp executor)
-     (ignore-errors
-       (require (intern (format "ob-%s" lang))))
-     (unless (fboundp executor)
-       (when (fboundp 'org-babel-confirm-evaluate)
-         (ignore-errors
-           (org-babel-confirm-evaluate (list lang body params))))
-       (unless (fboundp executor)
-         (error "No org-babel support for '%s'. Check org-babel-load-languages" lang))))
-   
-   (if org-test-default-timeout
-      (with-timeout (org-test-default-timeout
-                (error "Test timeout after %d seconds" org-test-default-timeout))
-       (funcall executor body params))
-     (funcall executor body params))))
+  (let* ((lang-sym (if (symbolp lang) lang (intern lang)))
+         (executor (intern (format "org-babel-execute:%s" lang))))
+
+    (unless (fboundp executor)
+      (ignore-errors
+        (require (intern (format "ob-%s" lang))))
+      (unless (fboundp executor)
+        (when (fboundp 'org-babel-confirm-evaluate)
+          (ignore-errors
+            (org-babel-confirm-evaluate (list lang body params))))
+        (unless (fboundp executor)
+          (error "No org-babel support for '%s'. Check org-babel-load-languages" lang))))
+
+    (if org-test-default-timeout
+        (with-timeout (org-test-default-timeout
+                       (error "Test timeout after %d seconds" org-test-default-timeout))
+          (funcall executor body params))
+      (funcall executor body params))))
 
 
 (defun org-test--process-result (state test-name-full test-name file-path actual-result expect-map)
- (let ((completed (1+ (aref state 1))))
-   (aset state 1 completed))
+  (let ((completed (1+ (aref state 1))))
+    (aset state 1 completed))
 
- (let* ((expected-blocks (gethash test-name expect-map))
-      (test-passed-p t))
-   (if (not expected-blocks)
-      (progn 
-       (if noninteractive
-          (org-test--output "  %s %s (No expectation block)"
-                      (propertize "✗" 'face 'org-test-fail-face)
-                      test-name)
-         (org-test--output "** %s [[file:%s::%s][%s]] (No expectation block)"
-                     (propertize "✗" 'face 'org-test-fail-face)
-                     file-path test-name-full test-name))
-       (setq test-passed-p nil))
-     (if noninteractive
-        (org-test--output "  %s" test-name)
-       (org-test--output "** [[file:%s::%s][%s]]" file-path test-name-full test-name))
-     (cl-block nil
-       (dolist (exp-block expected-blocks)
-         (let* ((exp-name (org-element-property :name exp-block))
-              (exp-type (org-element-type exp-block))
-              (expected-string (cond
-                          ((eq exp-type 'example-block)
-                           (org-element-property :value exp-block))
-                          ((eq exp-type 'fixed-width)
-                           (org-element-property :value exp-block))
-                          (t (org-element-interpret-data (org-element-contents exp-block)))))
-              ;; Extract test type from expect name (same logic as find-expectations)
-              (test-type (cond
-                      ((string-suffix-p "-not-includes" exp-name) "not-includes")
-                      ((string-suffix-p "-not-equals" exp-name) "not-equals")
-                      ((string-suffix-p "-not-matches" exp-name) "not-matches")
-                      ((string-suffix-p "-includes-all" exp-name) "includes-all")
-                      ((string-suffix-p "-includes-any" exp-name) "includes-any")
-                      ((string-suffix-p "-includes" exp-name) "includes")
-                      ((string-suffix-p "-matches" exp-name) "matches")
-                      ((string-suffix-p "-equals" exp-name) "equals")
-                      (t "unknown")))
-              (comparison-result (org-test--compare actual-result expected-string test-type)))
-           (if comparison-result
-              (if noninteractive
-                 (org-test--output "    %s %s"
-                             (propertize "✓" 'face 'org-test-pass-face)
-                             test-type)
-               (org-test--output "   - %s [[file:%s::%s][%s]]"
-                           (propertize "✓" 'face 'org-test-pass-face)
-                           file-path exp-name test-type))
-             (let* ((actual-str (if (stringp actual-result) actual-result (format "%s" actual-result)))
-                  (expected-str (if (stringp expected-string) expected-string 
-                             (if (listp expected-string)
-                                (mapconcat #'identity expected-string "")
-                               (format "%s" expected-string)))))
-               (if noninteractive
-                  (progn
-                   (org-test--output "    %s %s"
-                               (propertize "✗" 'face 'org-test-fail-face)
-                               test-type)
-                   (org-test--output "      Expected: %s" (string-trim expected-str))
-                   (org-test--output "      Actual:   %s" (string-trim actual-str)))
-                 (org-test--output "   - %s [[file:%s::%s][%s]]" 
-                             (propertize "✗" 'face 'org-test-fail-face)
-                             file-path exp-name test-type)
-                 (org-test--output "     - Expected: %s" (string-trim expected-str))
-                 (org-test--output "     - Actual:   %s" (string-trim actual-str)))
-               (setq test-passed-p nil)
-               (cl-return-from nil)))))))
+  (let* ((expected-blocks (gethash test-name expect-map))
+         (test-passed-p t))
+    (if (not expected-blocks)
+        (progn
+          (if noninteractive
+              (org-test--output "  %s %s (No expectation block)"
+                                (propertize "✗" 'face 'org-test-fail-face)
+                                test-name)
+            (org-test--output "** %s [[file:%s::%s][%s]] (No expectation block)"
+                              (propertize "✗" 'face 'org-test-fail-face)
+                              file-path test-name-full test-name))
+          (setq test-passed-p nil))
+      (if noninteractive
+          (org-test--output "  %s" test-name)
+        (org-test--output "** [[file:%s::%s][%s]]" file-path test-name-full test-name))
+      (cl-block nil
+        (dolist (exp-block expected-blocks)
+          (let* ((exp-name (org-element-property :name exp-block))
+                 (exp-type (org-element-type exp-block))
+                 (expected-string (cond
+                                   ((eq exp-type 'example-block)
+                                    (org-element-property :value exp-block))
+                                   ((eq exp-type 'fixed-width)
+                                    (org-element-property :value exp-block))
+                                   (t (org-element-interpret-data (org-element-contents exp-block)))))
+                 ;; Extract test type from expect name (same logic as find-expectations)
+                 (test-type (cond
+                             ((string-suffix-p "-not-includes" exp-name) "not-includes")
+                             ((string-suffix-p "-not-equals" exp-name) "not-equals")
+                             ((string-suffix-p "-not-matches" exp-name) "not-matches")
+                             ((string-suffix-p "-includes-all" exp-name) "includes-all")
+                             ((string-suffix-p "-includes-any" exp-name) "includes-any")
+                             ((string-suffix-p "-includes" exp-name) "includes")
+                             ((string-suffix-p "-matches" exp-name) "matches")
+                             ((string-suffix-p "-equals" exp-name) "equals")
+                             (t "unknown")))
+                 (comparison-result (org-test--compare actual-result expected-string test-type)))
+            (if comparison-result
+                (if noninteractive
+                    (org-test--output "    %s %s"
+                                      (propertize "✓" 'face 'org-test-pass-face)
+                                      test-type)
+                  (org-test--output "   - %s [[file:%s::%s][%s]]"
+                                    (propertize "✓" 'face 'org-test-pass-face)
+                                    file-path exp-name test-type))
+              (let* ((actual-str (if (stringp actual-result) actual-result (format "%s" actual-result)))
+                     (expected-str (if (stringp expected-string) expected-string
+                                     (if (listp expected-string)
+                                         (mapconcat #'identity expected-string "")
+                                       (format "%s" expected-string)))))
+                (if noninteractive
+                    (progn
+                      (org-test--output "    %s %s"
+                                        (propertize "✗" 'face 'org-test-fail-face)
+                                        test-type)
+                      (org-test--output "      Expected: %s" (string-trim expected-str))
+                      (org-test--output "      Actual:   %s" (string-trim actual-str)))
+                  (org-test--output "   - %s [[file:%s::%s][%s]]"
+                                    (propertize "✗" 'face 'org-test-fail-face)
+                                    file-path exp-name test-type)
+                  (org-test--output "     - Expected: %s" (string-trim expected-str))
+                  (org-test--output "     - Actual:   %s" (string-trim actual-str)))
+                (setq test-passed-p nil)
+                (cl-return-from nil)))))))
 
-   (if test-passed-p
-      (aset state 2 (1+ (aref state 2)))
-     (aset state 3 (1+ (aref state 3))))))
+    (if test-passed-p
+        (aset state 2 (1+ (aref state 2)))
+      (aset state 3 (1+ (aref state 3))))))
 
 
 (defun org-test--find-tests-and-expectations ()
@@ -391,7 +391,7 @@ Returns (test-blocks . expect-map) where:
       (cons (nreverse test-blocks) expect-map))))
 
 (defun org-test--compare (output expected type)
- "Compare OUTPUT and EXPECTED.
+  "Compare OUTPUT and EXPECTED.
 Available TYPEs:
   - equals: output matches exactly
   - not-equals: output must NOT match exactly
@@ -401,37 +401,37 @@ Available TYPEs:
   - includes-all: output contains all expected lines (order-independent)
   - matches: output matches expected regex pattern
   - not-matches: output must NOT match expected regex pattern"
- (let* ((output-str (if (stringp output) output (format "%s" output)))
-      (expected-str (cond
-                ((stringp expected) expected)
-                ((listp expected) (mapconcat #'identity expected ""))
-                (t (format "%s" expected))))
-      (clean-output (string-trim output-str))
-      (clean-expected (string-trim expected-str)))
-   (cond
-    ((equal type "equals") 
-     (equal clean-expected clean-output))
-    ((equal type "not-equals") 
-     (not (equal clean-expected clean-output)))
-    ((equal type "includes") 
-     (string-match-p (regexp-quote clean-expected) clean-output))
-    ((equal type "not-includes")
-     (not (string-match-p (regexp-quote clean-expected) clean-output)))
-    ((equal type "includes-any")
-     (let ((expected-lines (split-string clean-expected "\n" t)))
-       (cl-some (lambda (line)
-               (string-match-p (regexp-quote (string-trim line)) clean-output))
-             expected-lines)))
-    ((equal type "includes-all")
-     (let ((expected-lines (split-string clean-expected "\n" t)))
-       (cl-every (lambda (line)
-               (string-match-p (regexp-quote (string-trim line)) clean-output))
-              expected-lines)))
-    ((equal type "matches")
-     (string-match-p clean-expected clean-output))
-    ((equal type "not-matches")
-     (not (string-match-p clean-expected clean-output)))
-    (t (message "Warning: Unknown test type: %s" type) nil))))
+  (let* ((output-str (if (stringp output) output (format "%s" output)))
+         (expected-str (cond
+                        ((stringp expected) expected)
+                        ((listp expected) (mapconcat #'identity expected ""))
+                        (t (format "%s" expected))))
+         (clean-output (string-trim output-str))
+         (clean-expected (string-trim expected-str)))
+    (cond
+     ((equal type "equals")
+      (equal clean-expected clean-output))
+     ((equal type "not-equals")
+      (not (equal clean-expected clean-output)))
+     ((equal type "includes")
+      (string-match-p (regexp-quote clean-expected) clean-output))
+     ((equal type "not-includes")
+      (not (string-match-p (regexp-quote clean-expected) clean-output)))
+     ((equal type "includes-any")
+      (let ((expected-lines (split-string clean-expected "\n" t)))
+        (cl-some (lambda (line)
+                   (string-match-p (regexp-quote (string-trim line)) clean-output))
+                 expected-lines)))
+     ((equal type "includes-all")
+      (let ((expected-lines (split-string clean-expected "\n" t)))
+        (cl-every (lambda (line)
+                    (string-match-p (regexp-quote (string-trim line)) clean-output))
+                  expected-lines)))
+     ((equal type "matches")
+      (string-match-p clean-expected clean-output))
+     ((equal type "not-matches")
+      (not (string-match-p clean-expected clean-output)))
+     (t (message "Warning: Unknown test type: %s" type) nil))))
 
 (provide 'org-test)
 ;;; org-test.el ends here
