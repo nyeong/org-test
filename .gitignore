@@ -1,5 +1,8 @@
 .pre-commit-config.yaml
 
+# Build artifacts
+/call-graph*
+
 # Emacs
 *~
 \#*\#

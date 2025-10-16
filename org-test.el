@@ -5,7 +5,7 @@
 ;; Author: An Nyeong <me@annyeong.me>
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "26.1") (org "9.0"))
-;; Keywords: org, testing, literate-programming
+;; Keywords: org, testing, literate-programming, lietrate-testing
 ;; URL: https://github.com/annyeong/org-test
 
 ;; This file is NOT part of GNU Emacs.
@@ -109,47 +109,55 @@ Set to nil to disable timeout.")
 
 ;;;###autoload
 (defun org-test-run (&rest targets)
- "Run tests on TARGETS (buffers, files, or directories).
+  "Run tests on TARGETS (buffers, files, or directories).
 TARGETS can be:
 - Buffers
 - File paths (strings ending in .org)
 - Directory paths (finds all .org files recursively)
 - Multiple arguments of any combination"
- (let ((buffers (org-test--normalize-targets targets))
-     (total-passed 0)
-     (total-failed 0)
-     (total-tests 0))
-   ;; Count total tests first
-   (dolist (buffer buffers)
-    (with-current-buffer buffer
-     (let* ((expect-map (org-test--find-expectations))
-          (test-names (hash-table-keys expect-map)))
-       (setq total-tests (+ total-tests (length (org-test--find-tests test-names)))))))
-   
-   ;; If no tests, just message and return
-   (if (= total-tests 0)
-      (message "No tests found")
-     ;; Has tests - setup buffer and run
-     (unless noninteractive
-       (with-current-buffer (org-test--get-results-buffer)
-         (let ((inhibit-read-only t))
-           (erase-buffer)))
-       (org-test--display-results-buffer))
-     
-     (dolist (buffer buffers)
-       (let ((result (org-test--run-buffer-sync buffer)))
-         (setq total-passed (+ total-passed (car result)))
-         (setq total-failed (+ total-failed (cdr result)))))
-     
-     (org-test--output "")
-     (if noninteractive
-        (org-test--output "Passed: %d, Failed: %d" total-passed total-failed)
-       (progn
-         (org-test--output "* Summary")
-         (org-test--output "Passed: %d, Failed: %d" total-passed total-failed)))
-     ;; Return non-zero exit code if any tests failed
-     (when (and noninteractive (> total-failed 0))
-       (kill-emacs 1)))))
+  (let ((buffers (org-test--normalize-targets targets))
+        (total-passed 0)
+        (total-failed 0)
+        (total-tests 0)
+        (buffer-test-data '()))
+    
+    ;; Find tests and expectations once per buffer
+    (dolist (buffer buffers)
+      (with-current-buffer buffer
+        (let* ((data (org-test--find-tests-and-expectations))
+               (test-blocks (car data))
+               (expect-map (cdr data)))
+          (when test-blocks
+            (push (list buffer test-blocks expect-map) buffer-test-data)
+            (setq total-tests (+ total-tests (length test-blocks)))))))
+    
+    ;; If no tests, just message and return
+    (if (= total-tests 0)
+        (message "No tests found")
+      ;; Has tests - setup buffer and run
+      (unless noninteractive
+        (with-current-buffer (org-test--get-results-buffer)
+          (let ((inhibit-read-only t))
+            (erase-buffer)))
+        (org-test--display-results-buffer))
+      
+      (dolist (data buffer-test-data)
+        (let* ((buffer (nth 0 data))
+               (test-blocks (nth 1 data))
+               (expect-map (nth 2 data))
+               (result (org-test--run-buffer-sync buffer test-blocks expect-map)))
+          (setq total-passed (+ total-passed (car result)))
+          (setq total-failed (+ total-failed (cdr result)))))
+      
+      (org-test--output "")
+      (if noninteractive
+          (org-test--output "Passed: %d, Failed: %d" total-passed total-failed)
+        (progn
+          (org-test--output "* Summary")
+          (org-test--output "Passed: %d, Failed: %d" total-passed total-failed)))
+      ;; Return non-zero exit code if any tests failed
+      (when (and noninteractive (> total-failed 0))
+        (kill-emacs 1)))))
 
 ;; Private API
 
@@ -207,25 +215,22 @@ TARGETS can be buffers, file paths, or directory paths."
                                       (cons '(:results . "value")
                                             (assq-delete-all :results params))))))
 
-(defun org-test--run-buffer-sync (buffer)
- "Find all test blocks and run synchronously those in given BUFFER.
+(defun org-test--run-buffer-sync (buffer test-blocks expect-map)
+  "Run TEST-BLOCKS in BUFFER with EXPECT-MAP.
 Returns (passed . failed) cons cell."
- (with-current-buffer buffer
-   (let* ((expect-map (org-test--find-expectations))
-        (test-names (hash-table-keys expect-map))
-        (test-blocks (org-test--find-tests test-names))
-        (state (vector (length test-blocks) 0 0 0))
-        (file-path (buffer-file-name buffer)))
-     (if noninteractive
-        (org-test--output "%s" (buffer-name buffer))
-       (org-test--output "* %s" (buffer-name buffer)))
-     (dolist (test-block test-blocks)
-       (let* ((test-name (org-element-property :name test-block))
-            (test-type (org-element-type test-block))
-            (actual-result (org-test--get-block-result test-block test-type)))
-         (org-test--process-result state test-name test-name file-path actual-result expect-map)))
-     ;; Return (passed . failed)
-     (cons (aref state 2) (aref state 3)))))
+  (with-current-buffer buffer
+    (let* ((state (vector (length test-blocks) 0 0 0))
+           (file-path (buffer-file-name buffer)))
+      (if noninteractive
+          (org-test--output "%s" (buffer-name buffer))
+        (org-test--output "* %s" (buffer-name buffer)))
+      (dolist (test-block test-blocks)
+        (let* ((test-name (org-element-property :name test-block))
+               (test-type (org-element-type test-block))
+               (actual-result (org-test--get-block-result test-block test-type)))
+          (org-test--process-result state test-name test-name file-path actual-result expect-map)))
+      ;; Return (passed . failed)
+      (cons (aref state 2) (aref state 3)))))
 
 (defun org-test--get-results-block (src-block)
  "Get the RESULTS block content following SRC-BLOCK.
@@ -340,46 +345,50 @@ Respects `org-test-default-timeout' for execution timeout."
      (aset state 3 (1+ (aref state 3))))))
 
 
-(defun org-test--find-tests (test-names)
- "Find blocks matching TEST-NAMES."
- (let ((results '()))
-   (org-element-map (org-element-parse-buffer) '(src-block example-block fixed-width)
-     (lambda (block)
-       (let ((name (org-element-property :name block)))
-         (when (and name (member name test-names))
-           (push block results)))))
-   (nreverse results)))
-
-(defun org-test--find-expectations ()
- "Find all expect blocks, return (test-name . expect-list)."
- (let ((expect-map (make-hash-table :test 'equal)))
-   (dolist (exp-block (org-element-map (org-element-parse-buffer) '(example-block fixed-width)
-                 (lambda (exp)
-                   (let ((exp-name (org-element-property :name exp)))
-                     (when (and exp-name (string-prefix-p "expect-" exp-name))
-                       exp)))))
-     (let* ((exp-name (org-element-property :name exp-block))
-          (without-prefix (substring exp-name 7))
-          (test-name (cond
-                  ((string-suffix-p "-not-includes" without-prefix)
-                   (substring without-prefix 0 -13))
-                  ((string-suffix-p "-not-equals" without-prefix)
-                   (substring without-prefix 0 -11))
-                  ((string-suffix-p "-not-matches" without-prefix)
-                   (substring without-prefix 0 -12))
-                  ((string-suffix-p "-includes-all" without-prefix)
-                   (substring without-prefix 0 -13))
-                  ((string-suffix-p "-includes-any" without-prefix)
-                   (substring without-prefix 0 -13))
-                  ((string-suffix-p "-includes" without-prefix)
-                   (substring without-prefix 0 -9))
-                  ((string-suffix-p "-matches" without-prefix)
-                   (substring without-prefix 0 -8))
-                  ((string-suffix-p "-equals" without-prefix)
-                   (substring without-prefix 0 -7))
-                  (t without-prefix))))
-       (push exp-block (gethash test-name expect-map '()))))
-   expect-map))
+(defun org-test--find-tests-and-expectations ()
+  "Find all tests and expectations in one pass.
+Returns (test-blocks . expect-map) where:
+- test-blocks: list of test blocks that have expectations
+- expect-map: hash table mapping test-name to list of expectation blocks"
+  (let ((expect-map (make-hash-table :test 'equal))
+        (test-candidates '()))
+    
+    ;; Single pass: collect both expectations and test candidates
+    (org-element-map (org-element-parse-buffer) '(src-block example-block fixed-width)
+      (lambda (block)
+        (let ((name (org-element-property :name block)))
+          (when name
+            (if (string-prefix-p "expect-" name)
+                ;; Expectation block: parse and store
+                (let* ((without-prefix (substring name 7))
+                       (test-name (cond
+                                   ((string-suffix-p "-not-includes" without-prefix)
+                                    (substring without-prefix 0 -13))
+                                   ((string-suffix-p "-not-equals" without-prefix)
+                                    (substring without-prefix 0 -11))
+                                   ((string-suffix-p "-not-matches" without-prefix)
+                                    (substring without-prefix 0 -12))
+                                   ((string-suffix-p "-includes-all" without-prefix)
+                                    (substring without-prefix 0 -13))
+                                   ((string-suffix-p "-includes-any" without-prefix)
+                                    (substring without-prefix 0 -13))
+                                   ((string-suffix-p "-includes" without-prefix)
+                                    (substring without-prefix 0 -9))
+                                   ((string-suffix-p "-matches" without-prefix)
+                                    (substring without-prefix 0 -8))
+                                   ((string-suffix-p "-equals" without-prefix)
+                                    (substring without-prefix 0 -7))
+                                   (t without-prefix))))
+                  (push block (gethash test-name expect-map '())))
+              ;; Potential test block: store as candidate
+              (push (cons name block) test-candidates))))))
+    
+    ;; Filter test candidates: keep only those with expectations
+    (let ((test-blocks '()))
+      (dolist (candidate test-candidates)
+        (when (gethash (car candidate) expect-map)
+          (push (cdr candidate) test-blocks)))
+      (cons (nreverse test-blocks) expect-map))))
 
 (defun org-test--compare (output expected type)
  "Compare OUTPUT and EXPECTED.

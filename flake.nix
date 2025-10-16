@@ -15,7 +15,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Batch용 Emacs with org-mode
+        # Use emacs-nox to avoid graphical dependencies
         testEmacs = pkgs.emacs-nox.pkgs.withPackages (epkgs: [
           epkgs.org
         ]);
@@ -29,16 +29,34 @@
             --eval '(org-test-run "examples/")'
         '';
         
+        # Call graph generator script
+        callGraphScript = pkgs.writeShellScriptBin "generate-call-graph" ''
+          echo "Generating call graph..."
+          SOURCE_FILE=org-test.el DOT_FILE=call-graph.dot \
+            ${testEmacs}/bin/emacs --batch -l scripts/call-graph.el
+          ${pkgs.graphviz}/bin/dot -Tsvg call-graph.dot -o examples/call_graph.svg
+          echo "Call graph generated: examples/call_graph.svg"
+        '';
+        
         # Pre-commit hooks
         pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
+            call-graph = {
+              enable = true;
+              name = "call-graph";
+              description = "Generate call graph";
+              entry = "${callGraphScript}/bin/generate-call-graph";
+              pass_filenames = false;
+              stages = ["pre-commit"];
+            };
             org-test = {
               enable = true;
               name = "org-test";
               description = "Run org-test tests";
               entry = "${testScript}/bin/check";
               pass_filenames = false;
+              stages = ["pre-commit"];
             };
           };
         };
@@ -70,6 +88,8 @@
           buildInputs = [
             testEmacs
             testScript
+            callGraphScript
+            pkgs.graphviz
           ];
           
           shellHook = pre-commit-check.shellHook + ''
@@ -77,7 +97,8 @@
             echo "org-test development environment"
             echo ""
             echo "Commands:"
-            echo "  check    - Run all tests"
+            echo "  check               - Run all tests"
+            echo "  generate-call-graph - Generate call graph SVG"
             echo ""
           '';
         };

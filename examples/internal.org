@@ -1,23 +1,24 @@
 #+TITLE: Internal API Tests
 
+[[file:call_graph.svg]]
+
 This document tests internal functions of org-test. These tests verify the correct behavior of the testing framework itself.
 
 * Internal API
 
-** org-test--find-tests
+** org-test--find-tests-and-expectations
 
-The ~org-test--find-tests~ function finds blocks that match the given test names.
+The ~org-test--find-tests-and-expectations~ function finds both test blocks and expectations in a single pass.
 
 *** Should count tests correctly
 
-This test verifies that ~org-test--find-tests~ finds all blocks matching the test names from expectations.
+This test verifies that the function finds all test blocks that have expectations.
 
 #+NAME: find-tests-count
 #+begin_src emacs-lisp 
-(let* ((expect-map (org-test--find-expectations))
-       (test-names (hash-table-keys expect-map))
-       (tests (org-test--find-tests test-names)))
-  (length tests))
+(let* ((data (org-test--find-tests-and-expectations))
+       (test-blocks (car data)))
+  (length test-blocks))
 #+end_src
 
 #+NAME: expect-find-tests-count-equals
@@ -25,16 +26,15 @@ This test verifies that ~org-test--find-tests~ finds all blocks matching the tes
 3
 #+end_example
 
-** org-test--find-expectations
-
-The ~org-test--find-expectations~ function finds all expectation blocks and maps them to their corresponding tests.
-
 *** Should count expectation groups correctly
+
+This test verifies that the function finds all expectation blocks grouped by test name.
 
 #+NAME: find-expectations-count
 #+begin_src emacs-lisp
-(let* ((expectations (org-test--find-expectations)))
-  (hash-table-count expectations))
+(let* ((data (org-test--find-tests-and-expectations))
+       (expect-map (cdr data)))
+  (hash-table-count expect-map))
 #+end_src
 
 #+NAME: expect-find-expectations-count-equals
@@ -42,11 +42,14 @@ The ~org-test--find-expectations~ function finds all expectation blocks and maps
 
 *** Should extract correct test names as keys
 
+This test verifies that expectation block names are correctly parsed to extract test names.
+
 #+NAME: find-expectations-keys
 #+begin_src emacs-lisp
-(let ((keys '()))
-  (maphash (lambda (key value) (push key keys))
-           (org-test--find-expectations))
+(let* ((data (org-test--find-tests-and-expectations))
+       (expect-map (cdr data))
+       (keys '()))
+  (maphash (lambda (key value) (push key keys)) expect-map)
   (mapconcat #'identity (sort keys #'string<) "\n"))
 #+end_src
 

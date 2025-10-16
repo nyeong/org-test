@@ -2,7 +2,7 @@
 
 * 1. Define Example
 
-Define runnable examples with source-code block.
+Define runnable examples using source-code blocks.
 
 #+NAME: cowsay
 #+begin_src shell :results output
@@ -21,10 +21,14 @@ nix run nixpkgs#cowsay -- "Hello"
 
 * 2. Write down expectations
 
+In the source code block above, [[cowsay]] should include this:
+
 #+NAME: expect-cowsay-includes
 #+begin_example
 Hello
 #+end_example
+
+And it should be equal to:
 
 #+NAME: expect-cowsay-equals
 #+begin_example

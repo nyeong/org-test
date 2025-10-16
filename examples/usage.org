@@ -176,3 +176,49 @@ Set a global timeout for test execution (default: 30 seconds):
 
 Tests that exceed the timeout will fail with a timeout error.
 
+* Best Practices
+
+** Organizing Tests for Export
+
+For clean document exports (HTML, Markdown, PDF), group all test expectations under a =:noexport:= heading.
+
+This keeps your literate documents readable while maintaining comprehensive test coverage.
+
+*** Example Structure
+
+#+begin_src org
+,* Examples
+
+,** Cowsay Demo
+
+,#+NAME: cowsay
+,#+begin_src bash
+,nix run nixpkgs#cowsay -- "Hello"
+,#+end_src
+
+,** String Manipulation
+
+,#+NAME: reverse-string
+,#+begin_src emacs-lisp
+,(reverse "Hello")
+,#+end_src
+
+,* Tests :noexport:
+
+All expectation blocks go here - won't appear in exported documents.
+
+,#+NAME: expect-cowsay-includes
+,#+begin_example
+,Hello
+,#+end_example
+
+,#+NAME: expect-reverse-string-equals
+,: olleH
+#+end_src
+
+The =:noexport:= tag ensures that:
+- Test expectations don't clutter your documentation
+- Examples remain clear and focused
+- Exported documents maintain professional appearance
+- Tests stay close to their source for maintenance
+
